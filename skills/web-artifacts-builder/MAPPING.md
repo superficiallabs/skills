@@ -1,12 +1,10 @@
-# Mapping: webapp-testing
+# Mapping: artifacts-builder
 
-> **Source:** [anthropics/skills/webapp-testing](https://github.com/anthropics/skills/tree/main/webapp-testing)
+> **Source:** [anthropics/skills/artifacts-builder](https://github.com/anthropics/skills/tree/main/artifacts-builder)
 >
 > **Policy:** [policy.cpl](./policy.cpl)
 >
-> **Category:** No assumptions needed
->
-> **Framework:** [Playwright](https://playwright.dev/)
+> **Category:** No assumptions needed (T1 only)
 
 ---
 
@@ -14,78 +12,80 @@
 
 | # | SKILL.md Guidance | Tier | Predicate | Type |
 |---|-------------------|------|-----------|------|
-| 1 | Valid test code | T1 | `syntax_valid(code) == true` | Direct |
-| 2 | Valid test code | T1 | `parse_error_count(code) == 0` | Direct |
-| 3 | "run Playwright tests" | T1 | `test_count(code) > 0` | Direct |
-| 4 | "verify functionality" | T1 | `tests_without_assertions_count(code) == 0` | Direct |
-| 5 | Playwright API | T1 | `invalid_playwright_method_count(code) == 0` | Direct |
-| 6 | Playwright API | T1 | `deprecated_playwright_method_count(code) == 0` | Direct |
-| 7 | Async correctness | T1 | `unawaited_async_count(code) == 0` | Direct |
-| 8 | Best practices | T3 | `generic_test_name_count(code) == 0` | Proxy |
-| 9 | Best practices | T3 | `tests_exceeding_length_count(code) == 0` | Proxy |
-| 10 | Best practices | T3 | `hardcoded_wait_count(code) == 0` | Direct |
+| 1 | "React" artifacts | T1 | `valid_jsx_syntax(code) == true` | Direct |
+| 2 | "React" artifacts | T1 | `jsx_parse_error_count(code) == 0` | Direct |
+| 3 | Use available libraries | T1 | `unresolved_import_count(code) == 0` | Direct |
+| 4 | "Tailwind CSS" | T1 | `invalid_tailwind_class_count(code) == 0` | Direct |
+| 5 | React best practices | T1 | `hooks_rules_violations(code) == 0` | Direct |
+| 6 | Renderable component | T1 | `has_default_export(code) == true` | Direct |
+| 7 | Environment constraints | T1 | `source_size_bytes(code) <= config.max_source_size_bytes` | Direct |
 
 ---
 
 ## Verification Approach
 
-All predicates use **static code analysis**. No test execution required.
+All predicates use **static code analysis**. No execution required.
 
 | Analysis Type | Predicates |
 |---------------|------------|
-| Parsing | Syntax validity, parse errors |
-| AST analysis | Test count, assertions, async/await |
-| API validation | Playwright methods |
-| Pattern matching | Test names, hardcoded waits |
-| Metrics | Test length |
-
-**What this verifies:** The model produces well-formed, correct Playwright test code.
-
-**What this doesn't verify:** Whether tests pass when run. That depends on the application under test, not the model's capability.
+| JSX parsing | Syntax validity, parse errors |
+| AST analysis | Import resolution, hooks rules, default export |
+| Pattern matching | Tailwind class validation |
+| Byte counting | Source size |
 
 ---
 
-## Tier Rationale
+## Why No T3 Proxies?
 
-| Tier | Predicates | Why this tier |
-|------|------------|---------------|
-| **T1** | Syntax, tests exist, assertions, API, async | Invalid code won't run |
-| **T3** | Names, length, hardcoded waits | Best practices / maintainability |
+The original skill mentions "complex" and "elaborate" artifacts. We do **not** verify complexity because:
 
----
+1. **Complexity is request-dependent.** A user asking for a simple button shouldn't fail because it's "not complex enough."
 
-## Playwright Test Structure
+2. **Complexity proxies are easily gamed.** Line count and component count encourage bloat, not quality.
 
-A valid Playwright test file includes:
+3. **The skill enables complexity, it doesn't require it.** The skill teaches Claude *how* to build artifacts. What to build is determined by the user.
 
-```typescript
-import { test, expect } from '@playwright/test';
+4. **No fact of the matter.** Per CAPE's contextual objectivity principle, we only verify properties where there's an objective answer. "Is it valid JSX?" has a fact of the matter. "Is it complex enough?" does not.
 
-test('descriptive name', async ({ page }) => {
-  await page.goto('https://example.com');
-  await expect(page).toHaveTitle('Example');
-});
-```
-
-| Requirement | What it catches |
-|-------------|-----------------|
-| Valid syntax | Parse errors |
-| Has test() | Empty file |
-| Has expect() | Tests without verification |
-| Proper await | Race conditions |
-| Valid API | Typos, deprecated methods |
+**What we verify:** Is the code structurally correct?
+**What we don't verify:** Is the artifact impressive?
 
 ---
 
-## Common Anti-Patterns Detected
+## Predicate Details
 
-| Anti-pattern | Predicate | Why it's bad |
-|--------------|-----------|--------------|
-| No assertions | `tests_without_assertions_count` | Test always passes |
-| Missing await | `unawaited_async_count` | Race conditions, flaky tests |
-| Hardcoded waits | `hardcoded_wait_count` | Slow, flaky tests |
-| Generic names | `generic_test_name_count` | Hard to understand failures |
-| Long tests | `tests_exceeding_length_count` | Hard to maintain |
+| Predicate | What it catches | Why it's T1 |
+|-----------|-----------------|-------------|
+| `valid_jsx_syntax` | Syntax errors, unclosed tags | Won't compile |
+| `jsx_parse_error_count` | Parse failures | Won't compile |
+| `unresolved_import_count` | Missing dependencies | Won't run |
+| `invalid_tailwind_class_count` | Typos in class names | Styling won't apply |
+| `hooks_rules_violations` | Conditional hooks, nested hooks | React will crash or behave incorrectly |
+| `has_default_export` | No entry point | Can't render |
+| `source_size_bytes` | Oversized source | Environment limit |
+
+---
+
+## Not Mapped (Would Require Execution)
+
+| Guidance | Why not mapped |
+|----------|----------------|
+| "Renders successfully" | Requires running React |
+| "No console errors" | Requires runtime |
+| "Bundle size" | Requires bundling step |
+
+These are verified via structural proxies (valid syntax, correct hooks, resolved imports) rather than runtime behavior.
+
+---
+
+## Non-Verifiable Guidance
+
+| Guidance | Reason | Handling |
+|----------|--------|----------|
+| "complex artifacts" | Request-dependent, no objective threshold | Retained as skill guidance |
+| "elaborate" | Subjective quality judgment | Retained as skill guidance |
+| "beautiful" | Aesthetic preference | Retained as skill guidance |
+| "modern frontend" | Vague; valid React is already verified | Retained as skill guidance |
 
 ---
 
@@ -94,6 +94,7 @@ test('descriptive name', async ({ page }) => {
 | Category | Count | Status |
 |----------|------:|--------|
 | T1 (Correctness) | 7 | Static analysis |
-| T2 (Governance) | 0 | Not applicable |
-| T3 (Quality) | 3 | Static analysis |
-| **Total** | **10** | — |
+| T2 (Governance) | 0 | None in source skill |
+| T3 (Quality) | 0 | Intentionally omitted (see above) |
+| Non-verifiable | 4 | Documented |
+| **Total** | **11** | — |
